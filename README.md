@@ -1,5 +1,5 @@
 # text_editor
 
-Beta version of Notepad-like text editor
+Almost final release
 
-I have to work on code-apperance and add some other functionalities
+Added footer functionality. And worked on code apperance
