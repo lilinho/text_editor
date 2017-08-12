@@ -1,3 +1,8 @@
+"""
+TODO
+przy wrap lines nie zmienia LINES
+"""
+
 import tkinter as tk
 from tkinter import filedialog as fd
 import tkinter.messagebox
@@ -13,6 +18,7 @@ class TextEditor:
         self.main_window.geometry("{}x{}".format(800, 600))
         self.main_window.grid_rowconfigure(1, weight=1)
         self.main_window.grid_columnconfigure(0, weight=1)
+        self.main_window.protocol('WM_DELETE_WINDOW', self.on_quit)
 
         self.menu_frame = tk.Frame(self.main_window)
         self.text_frame = tk.Frame(self.main_window)
@@ -36,7 +42,7 @@ class TextEditor:
         self.top_menu.add_cascade(label="Edit", menu=self.edit_menu)
         self.top_menu.add_cascade(label="View", menu=self.view_menu)
 
-        self.file_menu.add_checkbutton(label="New file", command=self.new_file)
+        self.file_menu.add_cascade(label="New file", command=self.new_file)
         self.file_menu.add_cascade(label="Open file", command=self.open_file)
         self.file_menu.add_cascade(label="Save...", command=self.save)
         self.file_menu.add_cascade(label="Save as", command=self.save_as)
@@ -80,8 +86,7 @@ class TextEditor:
         # on the left side it will be displayed current state of file (opened, saved, name)
         # and it will disappear after 5 seconds
         self.file_info = tk.Label(self.footer_frame, text="New text file", anchor=tk.W)
-        self.file_info.grid(column=0, row=0, sticky=tk.W)
-        self.file_info.after(5000, self.clear_label)
+        self.file_info_updater()
 
         # on the right side it will be displayed current position of cursor
         # it's set to Line1 Col1 for now, but it will change after <KeyRelease>
@@ -89,15 +94,22 @@ class TextEditor:
         self.coordinates.grid(column=1, row=0, sticky=tk.W)
 
         self.file_name = ""  # variable for file name
+        self.flag = False
         self.main_window.mainloop()
 
-    @staticmethod
-    def modified(event):  # method binded to <KeyRelease>, returns TRUE after releasing key
-        return True
+    def file_info_updater(self):
+        self.file_info.grid(column=0, row=0, sticky=tk.W)
+        self.file_info.after(5000, self.clear_label)
+
+    def modified(self, _):  # method binded to <KeyRelease>, returns TRUE after releasing key
+        self.flag = True
+        return self.flag
 
     def new_file(self):  # basically clears text widget and changes window title
         self.editor_field.delete("0.0", 'end')
         self.main_window.title("Python GUI based TextEditor / New File")
+        self.file_info = tk.Label(self.footer_frame, text="New text file", anchor=tk.W)
+        self.file_info_updater()
 
     """
     Opens new file.
@@ -115,8 +127,12 @@ class TextEditor:
                 with open(self.file_name) as f:
                     for line in f:
                         self.editor_field.insert(tk.END, line)
+                current_file = self.file_name[self.file_name.rfind("/", 0, len(self.file_name))+1:]
                 self.main_window.title("Python GUI based TextEditor / "
-                                       + self.file_name[self.file_name.rfind("/", 0, len(self.file_name))+1:] + ".txt")
+                                       + current_file)
+                self.file_info.config(text="Opened file " + current_file)
+                self.file_info_updater()
+
         except Exception as e:
             tkinter.messagebox.askretrycancel(title="Error", message="Something went wrong....")
             print(e)
@@ -131,8 +147,11 @@ class TextEditor:
             else:
                 f = open(self.file_name + ".txt", "a")
                 f.write(self.editor_field.get("0.0", 'end-1c'))
+                current_file = self.file_name[self.file_name.rfind("/", 0, len(self.file_name)) + 1:]
                 self.main_window.title("Python GUI based TextEditor / "
-                                       + self.file_name[self.file_name.rfind("/", 0, len(self.file_name))+1:] + ".txt")
+                                       + current_file)
+                self.file_info.config(text="Saved as " + current_file)
+                self.file_info_updater()
         except Exception as e:
             tkinter.messagebox.askretrycancel(title="Error", message="Something went wrong....")
             print(e)
@@ -147,6 +166,8 @@ class TextEditor:
             try:
                 f = open(self.file_name, "w")
                 f.write(self.editor_field.get("0.0", 'end-1c'))
+                self.file_info.config(text="File saved")
+                self.file_info_updater()
             except Exception as e:
                 tkinter.messagebox.askretrycancel(title="Error", message="Something went wrong....")
                 print(e)
@@ -159,7 +180,7 @@ class TextEditor:
     If it wasn't, program quits with os.quit() method
     """
     def on_quit(self):
-        if self.modified is True:
+        if self.flag is True:
             save_or_not = tkinter.messagebox.askyesno("Save", "Save changes?")
             if save_or_not is True:
                 self.save_as()
@@ -198,7 +219,7 @@ class TextEditor:
             self.editor_field.config(wrap=tk.NONE)
             self.scrollbar_horiz.grid()
 
-    def update_footer(self, event):  # after key release function gets current cursor position and updates footer
+    def update_footer(self, _):  # after key release function gets current cursor position and updates footer
         cor = self.editor_field.index(tk.INSERT).split(".")
 
         self.coordinates.config(text="Line: " + cor[0] + ", Col: " + str(int(cor[1]) + 1))
